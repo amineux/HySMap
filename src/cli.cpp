@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -17,6 +18,10 @@ struct Args {
     std::string csv;
     std::string mapper = "hysmap";
     std::string preset = "potjans";
+    std::string seed_strategy;
+    std::string refine;
+    std::string format = "loihi-json";
+    int threads = 0;
     int mesh = 4;
     int rows = 0;
     int cols = 0;
@@ -45,13 +50,18 @@ void usage() {
         << "                  [--seed R] [--out net.json]\n"
         << "  hysmap map      --input net.json [--mesh N | --rows R --cols C]\n"
         << "                  [--mapper edge-qap|activity-qap|spectral|hysmap-seeded|hysmap]\n"
+        << "                  [--seed-strategy random|balanced|spectral|qap]\n"
+        << "                  [--refine none|greedy|multicast] [--threads N]\n"
         << "                  [--seed R] [--time-incremental] [--json] [--out result.json]\n"
         << "                  [--csv result.csv]\n"
-        << "  hysmap compare  --input net.json [--mesh N] [--seed R] [--time-incremental]\n"
-        << "                  [--csv compare.csv]\n"
-        << "  hysmap bench    [--quick | --full] [--out results/bench.csv]\n"
-        << "  hysmap demo     (generate a small Potjans net and print a mapping)\n"
+        << "  hysmap compare  --input net.json [--mesh N] [--seed R] [--threads N]\n"
+        << "                  [--time-incremental] [--csv compare.csv]\n"
+        << "  hysmap export   --input net.json --format loihi-json|loihi-stub\n"
+        << "                  [--mesh N] [--mapper hysmap] [--out out.json]\n"
+        << "  hysmap bench    [--quick | --full] [--threads N] [--out results/bench.csv]\n"
+        << "  hysmap demo     (Phase 1: tiny simulator + mapper on a 4×4 mesh)\n"
         << "  hysmap version\n\n"
+        << "Phases 1–6: docs/phases/   Technical report: docs/technical-report.md\n"
         << "Inspired by arXiv:2601.16118 and arXiv:2608.26223 — see README.md.\n";
 }
 
@@ -91,6 +101,15 @@ hysmap::MapperConfig make_cfg(const Args& a) {
     c.slack = a.slack;
     c.seed = a.seed;
     c.time_incremental = a.time_inc;
+    c.threads = a.threads;
+    if (!a.seed_strategy.empty()) {
+        c.seed_strategy = hysmap::parse_seed(a.seed_strategy);
+        c.override_seed = true;
+    }
+    if (!a.refine.empty()) {
+        c.refine = hysmap::parse_refine(a.refine);
+        c.override_refine = true;
+    }
     return c;
 }
 
@@ -111,11 +130,16 @@ void print_metrics(const hysmap::MapResult& r, const hysmap::MeshNoC& mesh,
               << "remote fanout    " << r.metrics.remote_fanout << "\n"
               << "lower bound      " << r.metrics.lower_bound << "\n"
               << "runtime          " << r.runtime_ms << " ms\n";
-    if (r.has_timing) {
+    if (r.has_timing && r.timing.evaluations > 0) {
         std::cout << "inc. speedup     " << r.timing.speedup << "x  (full "
                   << r.timing.full_ms << " ms vs inc " << r.timing.incremental_ms
                   << " ms, avg |A(v)|=" << r.timing.avg_affected
                   << ", max |ΔJ|=" << r.timing.max_abs_error << ")\n";
+        if (r.timing.thread_speedup > 0.0) {
+            std::cout << "thread speedup  " << r.timing.thread_speedup << "x  ("
+                      << r.timing.threads << " threads, serial " << r.timing.thread_serial_ms
+                      << " ms vs parallel " << r.timing.thread_parallel_ms << " ms)\n";
+        }
     }
 }
 
@@ -200,6 +224,34 @@ int cmd_compare(const Args& a) {
         std::cout << "\nHySMap hop reduction vs Edge+QAP: " << vs_e
                   << "%   vs Activity+QAP: " << vs_a << "%\n";
     }
+    return 0;
+}
+
+int cmd_export(const Args& a) {
+    if (a.input.empty()) {
+        throw std::invalid_argument("export requires --input");
+    }
+    const auto g = hysmap::load_network_json(a.input);
+    const auto mesh = make_mesh(a);
+    const auto r = hysmap::run_mapper(g, mesh, make_cfg(a));
+    const std::string fmt = a.format;
+    const std::string out = a.output.empty()
+                                ? (fmt == "loihi-stub" ? "loihi_stub.txt" : "loihi.json")
+                                : a.output;
+    if (fmt == "loihi-json" || fmt == "loihi" || fmt == "json") {
+        hysmap::save_loihi_style_json(g, mesh, r.mapping, out, "hysmap");
+    } else if (fmt == "loihi-stub" || fmt == "stub") {
+        std::ofstream f(out);
+        if (!f) {
+            throw std::runtime_error("cannot write " + out);
+        }
+        f << hysmap::loihi_style_stub(g, mesh, r.mapping);
+    } else {
+        throw std::invalid_argument("unknown export format: " + fmt +
+                                    " (use loihi-json or loihi-stub)");
+    }
+    std::cout << "wrote " << out << " (" << fmt << ", " << g.neuron_count() << " neurons, "
+              << mesh.rows() << "x" << mesh.cols() << ")\n";
     return 0;
 }
 
@@ -304,6 +356,14 @@ Args parse(int argc, char** argv) {
             a.joint_cycles = std::stoi(require(i, argc, argv, "--joint-cycles"));
         } else if (f == "--slack") {
             a.slack = std::stod(require(i, argc, argv, "--slack"));
+        } else if (f == "--seed-strategy") {
+            a.seed_strategy = require(i, argc, argv, "--seed-strategy");
+        } else if (f == "--refine") {
+            a.refine = require(i, argc, argv, "--refine");
+        } else if (f == "--threads") {
+            a.threads = std::stoi(require(i, argc, argv, "--threads"));
+        } else if (f == "--format") {
+            a.format = require(i, argc, argv, "--format");
         } else if (f == "--time-incremental") {
             a.time_inc = true;
         } else if (f == "--json") {
@@ -345,6 +405,9 @@ int main(int argc, char** argv) {
         }
         if (a.cmd == "compare") {
             return cmd_compare(a);
+        }
+        if (a.cmd == "export") {
+            return cmd_export(a);
         }
         if (a.cmd == "demo") {
             return cmd_demo(a);

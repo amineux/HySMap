@@ -19,6 +19,10 @@ struct BalanceBounds {
 
 void assign_balanced(Mapping& mapping, int neurons, int cores, std::mt19937_64& rng);
 
+/// Independent uniform core assignment, then repair capacity/balance.
+void assign_random(Mapping& mapping, int neurons, int cores, std::mt19937_64& rng,
+                   int capacity);
+
 [[nodiscard]] bool is_boundary(const DirectedHypergraph& g, const Mapping& m, NeuronId v);
 
 /// Greedy FM-style boundary refinement under pairwise edge cut
@@ -30,6 +34,11 @@ int refine_edge_cut(const DirectedHypergraph& g, Mapping& mapping, const MeshNoC
 /// Route-aware multicast refinement with exact incremental gains.
 int refine_multicast(const DirectedHypergraph& g, const MeshNoC& mesh, Mapping& mapping,
                      IncrementalEvaluator& eval, std::mt19937_64& rng, int passes,
-                     double slack, int capacity, IncrementalTiming* timing = nullptr);
+                     double slack, int capacity, IncrementalTiming* timing = nullptr,
+                     int threads = 1);
+
+/// Wall-clock serial vs parallel peek of all feasible cores for one boundary neuron.
+void measure_parallel_gains(const DirectedHypergraph& g, IncrementalEvaluator& eval,
+                            Mapping& mapping, IncrementalTiming& timing, int threads);
 
 }  // namespace hysmap

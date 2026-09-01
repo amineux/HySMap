@@ -63,6 +63,10 @@ struct IncrementalTiming {
     double avg_affected = 0.0;
     double max_abs_error = 0.0;
     std::uint64_t evaluations = 0;
+    int threads = 1;
+    double thread_serial_ms = 0.0;
+    double thread_parallel_ms = 0.0;
+    double thread_speedup = 0.0;
 };
 
 enum class MapperKind {
@@ -71,6 +75,19 @@ enum class MapperKind {
     Spectral,
     HySMapSeeded,
     HySMap
+};
+
+enum class SeedStrategy {
+    Random,
+    Balanced,
+    Spectral,
+    Qap
+};
+
+enum class RefineStrategy {
+    None,
+    Greedy,
+    Multicast
 };
 
 [[nodiscard]] inline const char* mapper_name(MapperKind k) {
@@ -95,7 +112,31 @@ struct MapperConfig {
     std::uint64_t seed = 1;
     bool time_incremental = false;
     int capacity = 0;  ///< 0 = derive from slack and n/k
+    int threads = 0;   ///< 0 = hardware_concurrency (at least 1)
+    SeedStrategy seed_strategy = SeedStrategy::Balanced;
+    RefineStrategy refine = RefineStrategy::Multicast;
+    bool override_seed = false;
+    bool override_refine = false;
 };
+
+[[nodiscard]] inline const char* seed_name(SeedStrategy s) {
+    switch (s) {
+        case SeedStrategy::Random: return "random";
+        case SeedStrategy::Balanced: return "balanced";
+        case SeedStrategy::Spectral: return "spectral";
+        case SeedStrategy::Qap: return "qap";
+    }
+    return "unknown";
+}
+
+[[nodiscard]] inline const char* refine_name(RefineStrategy s) {
+    switch (s) {
+        case RefineStrategy::None: return "none";
+        case RefineStrategy::Greedy: return "greedy";
+        case RefineStrategy::Multicast: return "multicast";
+    }
+    return "unknown";
+}
 
 struct MapResult {
     Mapping mapping;

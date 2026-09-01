@@ -1,6 +1,7 @@
 #include "hysmap/placement.hpp"
 
 #include "hysmap/cost.hpp"
+#include "hysmap/parallel.hpp"
 
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
@@ -412,25 +413,35 @@ void seed_spectral_partition(const DirectedHypergraph& g, const MeshNoC& mesh,
 
 int refine_placement_multicast(const MeshNoC& mesh, Mapping& mapping,
                                IncrementalEvaluator& eval, std::mt19937_64& rng,
-                               int restarts) {
+                               int restarts, int threads) {
     const int k = mesh.core_count();
     int applied = 0;
+    std::vector<std::pair<int, int>> pairs;
+    pairs.reserve(static_cast<std::size_t>(k * (k - 1) / 2));
+    for (int i = 0; i < k; ++i) {
+        for (int j = i + 1; j < k; ++j) {
+            pairs.emplace_back(i, j);
+        }
+    }
 
     auto improve = [&]() {
         bool changed = true;
         while (changed) {
             changed = false;
+            std::vector<double> objs(pairs.size(), 1e300);
+            parallel_for(static_cast<int>(pairs.size()), threads, [&](int idx) {
+                const auto [i, j] = pairs[static_cast<std::size_t>(idx)];
+                objs[static_cast<std::size_t>(idx)] =
+                    eval.peek_placement_swap(static_cast<CoreId>(i), static_cast<CoreId>(j))
+                        .objective;
+            });
             double best_j = eval.current().objective;
             int bi = -1, bj = -1;
-            for (int i = 0; i < k; ++i) {
-                for (int j = i + 1; j < k; ++j) {
-                    const CostBreakdown trial =
-                        eval.peek_placement_swap(static_cast<CoreId>(i), static_cast<CoreId>(j));
-                    if (trial.objective < best_j - 1e-12) {
-                        best_j = trial.objective;
-                        bi = i;
-                        bj = j;
-                    }
+            for (std::size_t idx = 0; idx < pairs.size(); ++idx) {
+                if (objs[idx] < best_j - 1e-12) {
+                    best_j = objs[idx];
+                    bi = pairs[idx].first;
+                    bj = pairs[idx].second;
                 }
             }
             if (bi >= 0) {

@@ -20,5 +20,7 @@ namespace hysmap {
                                                      const MapperConfig& base);
 
 [[nodiscard]] MapperKind parse_mapper(const std::string& name);
+[[nodiscard]] SeedStrategy parse_seed(const std::string& name);
+[[nodiscard]] RefineStrategy parse_refine(const std::string& name);
 
 }  // namespace hysmap
