@@ -1,0 +1,15 @@
+build/
+cmake-build-*/
+.cache/
+.idea/
+.vscode/
+*.o
+*.a
+*.so
+*.dylib
+compile_commands.json
+.DS_Store
+__pycache__/
+*.pyc
+CMakeUserPresets.json
+/results/*.tmp

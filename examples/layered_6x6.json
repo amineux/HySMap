@@ -1,0 +1,6 @@
+{
+  "name": "layered_6x6",
+  "generator": { "preset": "layered", "neurons": 160, "seed": 3 },
+  "mesh": { "rows": 6, "cols": 6 },
+  "mapper": { "name": "compare", "time_incremental": true, "seed": 3 }
+}

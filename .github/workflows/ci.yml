@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    name: Ubuntu C++20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++ git
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DHYSMAP_BUILD_TESTS=ON
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: CLI smoke
+        run: |
+          ./build/hysmap version
+          ./build/hysmap generate --preset potjans --neurons 48 --seed 1 --out /tmp/net.json
+          ./build/hysmap map --input /tmp/net.json --mesh 4 --mapper hysmap-seeded --seed 1 --json
+          ./build/hysmap demo --mesh 4 --neurons 48 --seed 1 --mapper activity-qap

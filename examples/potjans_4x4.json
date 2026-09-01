@@ -1,0 +1,19 @@
+{
+  "name": "potjans_4x4",
+  "notes": "Generate with: hysmap generate --preset potjans --neurons 108 --seed 1 --out examples/net_108.json",
+  "generator": {
+    "preset": "potjans",
+    "neurons": 108,
+    "seed": 1
+  },
+  "mesh": { "rows": 4, "cols": 4 },
+  "mapper": {
+    "name": "hysmap",
+    "edge_passes": 2,
+    "hyper_passes": 4,
+    "placement_restarts": 5,
+    "joint_cycles": 2,
+    "slack": 0.15,
+    "seed": 1
+  }
+}

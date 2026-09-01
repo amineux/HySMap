@@ -1,0 +1,6 @@
+{
+  "name": "potjans_5x5",
+  "generator": { "preset": "potjans", "neurons": 108, "seed": 2 },
+  "mesh": { "rows": 5, "cols": 5 },
+  "mapper": { "name": "hysmap", "slack": 0.15, "seed": 2 }
+}
