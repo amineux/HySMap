@@ -1,0 +1,16 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "hysmap"
+version = "0.2.0"
+description = "Activity-weighted multicast hypergraph mapper for SNNs on mesh NoCs"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[tool.scikit-build]
+cmake.define.HYSMAP_BUILD_PYTHON = "ON"
+cmake.define.HYSMAP_BUILD_TESTS = "OFF"
+wheel.packages = []

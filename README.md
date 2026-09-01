@@ -2,44 +2,136 @@
 
 **Activity-weighted multicast hypergraph mapping for spiking neural networks on mesh NoCs.**
 
-A spike is not a graph edge. It is one event delivered to a *set* of destinations, and the mesh routes that serve those destinations share links. HySMap is a C++20 library and CLI that treat that object honestly: a directed, activity-weighted hyperedge, a union of deterministic XY routes, and an exact incremental gain when you move one neuron.
+A spike is not a graph edge. It is one event delivered to a *set* of destinations, and the mesh routes that serve those destinations share links. This repo is a C++20 library + CLI (and optional Python module) that treat that object honestly.
 
-This repository is an independent, original implementation **inspired by** two 2026 arXiv preprints. It does **not** claim those papers’ authorship, datasets, or tables. Every hop count and speedup in this README was measured by the `hysmap` binary in this repo.
+Read it as a **six-phase curriculum**. Each phase is a module you can run, not a slide.
 
 [![CI](https://github.com/amineux/HySMap/actions/workflows/ci.yml/badge.svg)](https://github.com/amineux/HySMap/actions/workflows/ci.yml)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C)
 ![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C)
+![Python](https://img.shields.io/badge/Python-3.9%2B%20optional-3776AB)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+Independent implementation **inspired by** [arXiv:2601.16118](https://arxiv.org/abs/2601.16118) and [arXiv:2608.26223](https://arxiv.org/abs/2608.26223). Not those papers’ code or tables. Every hop count below was measured by `./build/hysmap` in this repository.
+
+<p align="center">
+  <img src="docs/assets/hysmap_demo.gif" alt="Occupancy heatmap and cost curve as HySMap refines a 4×4 mapping" width="720" />
+</p>
+
+<p align="center"><em>Real mappings (random → greedy → Activity+QAP → HySMap-seeded) on the checked-in 80-neuron net, seed=1. Storyboard: <a href="docs/assets/storyboard.png">docs/assets/storyboard.png</a>. MP4: <a href="docs/assets/hysmap_demo.mp4">docs/assets/hysmap_demo.mp4</a>.</em></p>
+
+---
+
+## How to read this repo
+
+| Phase | What you learn | Run this | Notes |
+| :---: | --- | --- | --- |
+| **1** | Tiny simulator: hypergraph, 4×4 XY mesh, cost | `hysmap demo --mesh 4 --neurons 80` | [docs/phases/01-tiny-simulator.md](docs/phases/01-tiny-simulator.md) |
+| **2** | Partition + placement, random seed, greedy refine | `hysmap map --seed-strategy random --refine greedy` | [02-mapper.md](docs/phases/02-mapper.md) |
+| **3** | Activity weights, spectral Laplacian, QAP seed | `hysmap map --mapper activity-qap` / `--seed-strategy spectral` | [03-intelligence.md](docs/phases/03-intelligence.md) |
+| **4** | Incremental ΔJ, route cache, threads | `hysmap demo --threads 4 --mapper hysmap-seeded` | [04-performance.md](docs/phases/04-performance.md) |
+| **5** | Baselines, suite, stats, plots | `hysmap compare` · `scripts/plot_results.py` | [05-research.md](docs/phases/05-research.md) |
+| **6** | Tests, CLI, bindings, export, report | [technical-report.md](docs/technical-report.md) | [06-publication.md](docs/phases/06-publication.md) |
+
+```mermaid
+flowchart LR
+  P1[1 Simulator] --> P2[2 Mapper]
+  P2 --> P3[3 Intelligence]
+  P3 --> P4[4 Performance]
+  P4 --> P5[5 Research]
+  P5 --> P6[6 Publication]
 ```
+
+---
+
+## Quickstart (C++)
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+
 ./build/hysmap demo --mesh 4 --neurons 80 --seed 1
-# multicast hops   3557
-# incremental      2.5× vs full recompute, |ΔJ| = 0
+./build/hysmap map --input examples/net_potjans_80.json --mesh 4 \
+    --seed-strategy random --refine greedy --seed 1
+./build/hysmap compare --input examples/net_potjans_80.json --mesh 4 --seed 1
+./build/hysmap export --input examples/net_potjans_80.json --mesh 4 \
+    --format loihi-json --out loihi.json
+```
+
+CMake ≥ 3.20, C++20 (GCC 13 on CI). Eigen and Catch2 come via FetchContent.
+
+## Quickstart (Python)
+
+```bash
+cmake -B build -DHYSMAP_BUILD_PYTHON=ON -DHYSMAP_BUILD_TESTS=OFF -DCMAKE_CXX_COMPILER=g++
+cmake --build build -j
+PYTHONPATH=build python python/examples/quickstart.py
+
+# or, with scikit-build-core + pybind11:
+# pip install -e .
+```
+
+```python
+import hysmap as hy
+g = hy.generate_snn(hy.GeneratorConfig())
+# set target_neurons / seed on the config as in python/examples/quickstart.py
+```
+
+## Loihi-style export
+
+Research JSON: cores as neurocores, neurons as soma compartments, axon fanout, destination-core lists, mesh \((x,y)\). **Not** an official Intel NxSDK / Lava artifact.
+
+```bash
+./build/hysmap export --input examples/net_potjans_80.json --format loihi-json -o loihi.json
+./build/hysmap export --input examples/net_potjans_80.json --format loihi-stub -o loihi.txt
 ```
 
 ---
 
-## Why a hiring manager (or a buyer) should care
+## Measured results (this repo)
 
-Neuromorphic chips — Loihi-class meshes, TrueNorth-style cores, research NoCs — waste energy on **spike movement**. The industry-default toolchain still partitions a *graph* of synapses and places cores with pairwise distance (QAP). That counts the wrong thing:
+Mean ± s.d. routed multicast hops. Full table: [`results/SUMMARY.md`](results/SUMMARY.md). CSV: [`results/bench.csv`](results/bench.csv).
 
-| Graph mapper sees | Hardware actually does |
-| --- | --- |
-| 20 remote synapses from one axon | **1** multicast to the cores those 20 neurons occupy |
-| \(\sum\) hops of independent packets | **Union** of XY paths (shared prefixes once) |
-| Edge cut as quality | Same cut, different fanout, different congestion |
+| Neurons | Mesh | Seeds | Edge+QAP | Activity+QAP | **HySMap** | vs Edge | vs Activity |
+| ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 80 | 4×4 | 3 | 4552±251 | 4515±559 | **3543±258** | 22.2% | 21.5% |
+| 80 | 5×5 | 3 | 5727±140 | 5270±43 | **4483±65** | 21.7% | 14.9% |
+| 80 | 6×6 | 3 | 6354±178 | 5979±226 | **5325±61** | 16.2% | 10.9% |
+| 108 | 4×4 | 3 | 6489±87 | 6280±226 | **5143±188** | 20.7% | 18.1% |
+| 108 | 5×5 | 3 | 8683±388 | 8241±177 | **7022±303** | 19.1% | 14.8% |
+| 108 | 6×6 | 3 | 10403±615 | 9811±340 | **7775±371** | 25.3% | 20.8% |
+| 108 | 7×7 | 2 | 12022±352 | 11501±533 | **9873±750** | 17.9% | 14.2% |
+| 160 | 6×6 | 1 | 17108 | 16199 | **12820** | 25.1% | 20.9% |
 
-HySMap raises the model to a hypergraph and then **optimizes the routed union**, not just the cut. On our suite that is worth **16–25% fewer routed multicast hops** than Edge+QAP and **11–22%** fewer than a strong Activity+QAP seed — while a conservative lower bound and an exact incremental evaluator keep the search honest.
+vs Edge+QAP **16.2–25.3%**. vs Activity+QAP **10.9–21.5%**. Traffic proxies, not joules.
 
-If you later productize this as a mapping SDK, the stable surfaces are already there: `DirectedHypergraph`, `MeshNoC`, `run_mapper()`, JSON in / JSON+CSV out.
+<p align="center">
+  <img src="results/plots/hop_reduction.png" alt="Hop reduction bars" width="640" />
+</p>
 
-### Why this matters beyond SNNs
+### Incremental + threads (Phase 4)
 
-The same “irregular graph → spatial fabric” tax shows up in FPGA GNN kernels (AutoGNN-style hardware-kernel search, Vision-GNN accelerators). Those stacks still mostly optimize pairwise traffic. HySMap’s code is specialized to **SNN → mesh NoC**, but the abstraction — one event, many sinks, shared routes — is the one those kernels will need when multicast and on-chip reuse become first-class.
+| | 80n / 4×4 | 108n / 6×6 |
+| --- | ---: | ---: |
+| Incremental vs full recompute | **2.66×** | **4.44×** |
+| 4-thread candidate-gain batch | **1.66×** | **2.56×** |
+
+Batches &lt; 32 stay serial (thread spawn would lose). Hop numbers are unchanged by threading: the same best move is committed.
+
+Regenerate plots / GIF / MP4:
+
+```bash
+./scripts/make_demo.sh
+```
 
 ---
 
-## What it does
+## Why hypergraphs (and why this is not a GNN FPGA kernel)
+
+Neuromorphic meshes waste energy on spike movement. Graph mappers count remote *synapses*. Hardware first collapses targets onto distinct cores and shares XY prefixes.
+
+The same “irregular graph → spatial fabric” tax shows up in FPGA GNN kernels (AutoGNN-style hardware-kernel search, Vision-GNN accelerators). Those stacks still mostly optimize pairwise traffic. **The code in this repo is SNN → mesh NoC.** The abstraction — one event, many sinks, shared routes — is what those kernels will need when multicast is first-class.
 
 ```mermaid
 flowchart LR
@@ -47,19 +139,15 @@ flowchart LR
     GEN[Potjans-inspired SNN]
     JSON[Hypergraph JSON]
   end
-  subgraph model [Representation]
-    H["Directed hyperedge h_u = u → N⁺(u)<br/>weight r_u"]
-    M["Mesh NoC N×N<br/>XY multicast union T_u"]
+  subgraph model [Phase 1]
+    H["h_u = u → N⁺(u)"]
+    M[Mesh XY union]
   end
-  subgraph search [Mappers]
+  subgraph search [Phases 2–4]
     EQ[Edge+QAP]
     AQ[Activity+QAP]
-    SP[Spectral Laplacian seed]
-    HY[HySMap refine + portfolio]
-  end
-  subgraph out [Output]
-    MAP[Core assignment]
-    MET["C_hop, max load, J, lower bound"]
+    SP[Spectral]
+    HY[HySMap]
   end
   GEN --> H
   JSON --> H
@@ -67,164 +155,47 @@ flowchart LR
   H --> AQ --> HY
   H --> SP --> HY
   M --> HY
-  HY --> MAP
-  HY --> MET
-```
-
-1. **Hypergraph** — one axon per source neuron, activity weight \(r_u\).
-2. **Mesh** — capacity-constrained cores, deterministic X-then-Y routing, link congestion.
-3. **Baselines** — Edge+QAP and Activity+QAP (pairwise flow × Manhattan, force polish).
-4. **Spectral seed** — hypergraph Laplacian / Fiedler embedding discretized onto the mesh.
-5. **HySMap refine** — FM-style moves under the multicast objective, using the locality theorem: moving \(v\) touches only \(\{v\}\cup N^-(v)\). Incremental \(\Delta\mathcal{J}\) matches a full recompute to \(10^{-9}\).
-6. **Lower bound** — \(C_{\mathrm{hop}}\ge F_{\mathrm{remote}}=\sum_u r_u|D_u|\) for a fixed partition; documented assumptions in [`docs/algorithm.md`](docs/algorithm.md).
-
----
-
-## Quickstart
-
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-ctest --test-dir build --output-on-failure
-
-./build/hysmap demo --mesh 4 --neurons 80 --seed 1
-./build/hysmap generate --preset potjans --neurons 108 --seed 1 --out net.json
-./build/hysmap compare --input net.json --mesh 4 --seed 1 --csv out.csv
-./build/hysmap map --input net.json --mesh 5 --mapper hysmap --json --out map.json
-```
-
-Requires CMake ≥ 3.20 and a C++20 compiler (GCC 13 is what CI uses). Eigen 3.4 and Catch2 v3 are pulled with FetchContent. No GPU, no Python, no MPI.
-
-If your `/usr/bin/c++` is Clang without a findable `libstdc++`, configure with `-DCMAKE_CXX_COMPILER=g++`.
-
----
-
-## CLI
-
-| Command | Purpose |
-| --- | --- |
-| `hysmap generate` | Potjans / layered / ER hypergraph → JSON |
-| `hysmap map` | One mapper, print metrics, optional JSON assignment |
-| `hysmap compare` | Edge+QAP, Activity+QAP, Spectral, HySMap-seeded, HySMap |
-| `hysmap bench` | Seeded suite (`--quick` or `--full`) |
-| `hysmap demo` | Zero-file walkthrough with incremental timing |
-
-Mappers: `edge-qap` · `activity-qap` · `spectral` · `hysmap-seeded` · `hysmap` (portfolio incumbent).
-
-```bash
-./build/hysmap map --input examples/net_potjans_80.json --mesh 4 \
-    --mapper hysmap --time-incremental --seed 1
 ```
 
 ---
 
-## Measured results (this repo)
-
-Potjans-inspired layered E/I recurrent nets, deterministic seeds, same activity vector for every mapper. Full CSV: [`results/bench.csv`](results/bench.csv). Narrative: [`results/SUMMARY.md`](results/SUMMARY.md).
-
-| Neurons | Mesh | Seeds | Edge+QAP | Activity+QAP | **HySMap** | vs Edge | vs Activity |
-| ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 80 | 4×4 | 3 | 4552 | 4515 | **3543** | 22.2% | 21.5% |
-| 80 | 5×5 | 3 | 5727 | 5270 | **4483** | 21.7% | 14.9% |
-| 80 | 6×6 | 3 | 6354 | 5979 | **5325** | 16.2% | 10.9% |
-| 108 | 4×4 | 3 | 6489 | 6280 | **5143** | 20.7% | 18.1% |
-| 108 | 5×5 | 3 | 8683 | 8241 | **7022** | 19.1% | 14.8% |
-| 108 | 6×6 | 3 | 10403 | 9811 | **7775** | 25.3% | 20.8% |
-| 108 | 7×7 | 2 | 12022 | 11501 | **9873** | 17.9% | 14.2% |
-| 160 | 6×6 | 1 | 17108 | 16199 | **12820** | 25.1% | 20.9% |
-
-Values are mean routed multicast hops. HySMap vs Edge+QAP: **16.2–25.3%**. vs Activity+QAP: **10.9–21.5%**.
-
-These are *mapping-level traffic proxies* (hops, max link load, load variance). We do not convert them into energy, latency, or joules without a calibrated chip model.
-
-### Incremental evaluator
-
-Moving neuron \(v\) invalidates only \(\mathcal{A}(v)=\{v\}\cup N^-(v)\). On the same candidate list:
-
-| | |
-| --- | --- |
-| Speedup vs full recompute | **2.3–5.1×** (grows with \(n\) and mesh; 5.1× at 160 neurons / 6×6) |
-| Average \(\|\mathcal{A}(v)\|\) | ~9–14 source hyperedges |
-| Max \(\|\Delta\mathcal{J}\|\) vs full recompute | floating-point noise (Catch2 requires \(<10^{-9}\)) |
-
-Reproduce: `./benchmarks/run_suite.sh results/bench.csv quick`
-
----
-
-## Library API (SDK-shaped)
+## Library
 
 ```cpp
 #include <hysmap/hysmap.hpp>
-
 auto g = hysmap::generate_snn({.preset = hysmap::GeneratorPreset::Potjans,
                                .target_neurons = 108, .seed = 1});
 hysmap::MeshNoC mesh(6, 6);
-hysmap::MapperConfig cfg;          // kind = HySMap, slack = 0.15
-auto result = hysmap::run_mapper(g, mesh, cfg);
-// result.metrics.hops, .max_load, .objective, .lower_bound
-// result.mapping.physical_core(v)
+auto r = hysmap::run_mapper(g, mesh, {});
 ```
 
-| Module | Role |
-| --- | --- |
-| `include/hysmap/hypergraph.hpp` | Directed activity-weighted hypergraph |
-| `mesh.hpp` | \(R\times C\) NoC, XY, multicast union |
-| `cost.hpp` / `incremental.hpp` | \(\mathcal{J}\) and exact local gains |
-| `partition.hpp` / `placement.hpp` | FM, QAP, force, min-distance, spectral |
-| `mapper.hpp` | Named pipelines + portfolio |
-| `io.hpp` | JSON networks, JSON/CSV metrics |
-
-Details: [`docs/architecture.md`](docs/architecture.md) · math: [`docs/algorithm.md`](docs/algorithm.md).
-
----
-
-## Project layout
+[`docs/architecture.md`](docs/architecture.md) · [`docs/algorithm.md`](docs/algorithm.md) · [`docs/technical-report.md`](docs/technical-report.md)
 
 ```
-include/hysmap/   public headers
-src/              library + CLI
-tests/            Catch2 (hypergraph, routing, incremental ≡ full, capacity)
-examples/         configs + checked-in networks
-docs/             algorithm + architecture
-benchmarks/       run_suite.sh
-results/          measured CSV + summary
-.github/workflows/ci.yml
+include/hysmap/   public headers          python/         pybind11 + examples
+src/              library + CLI           scripts/        plots + demo
+tests/            Catch2                  docs/phases/    1→6 curriculum
+examples/         nets + recipes          results/        CSV, plots, GIF
 ```
 
 ---
 
 ## Citations (inspiration, not authorship)
 
-HySMap **reimplements ideas from** these works. Read them. Cite them. Do not cite this repo as if it were those papers.
-
-1. Marco Ronzani and Cristina Silvano. *A Case for Hypergraphs to Model and Map SNNs on Neuromorphic Hardware.* [arXiv:2601.16118](https://arxiv.org/abs/2601.16118), 2026.  
-   Hypergraph SNN model, synaptic reuse / hyperedge locality, spectral (Laplacian) placement.
-
-2. Amirreza Khorasanian. *Beyond Edge Cuts: Activity-Weighted Multicast Hypergraph Mapping for Spiking Neural Networks on Mesh NoCs* (M-HySMap). [arXiv:2608.26223](https://arxiv.org/abs/2608.26223), 2026.  
-   Route-union objective, congestion terms, affected-source locality, incremental gains, conservative lower bound, Edge+QAP / Activity+QAP ablation.
-
-Related SNN / cortical structure (generator only):
-
-- T. C. Potjans and M. Diesmann. *The Cell-Type Specific Cortical Microcircuit.* Cerebral Cortex 24:785–806, 2014.  
-- W. Maass. *Networks of Spiking Neurons.* Neural Networks 10:1659–1671, 1997.
-
-Classical machinery we reuse as **seeds**, not as the optimized object: Fiduccia–Mattheyses, Koopmans–Beckmann QAP, Zhou–Huang–Schölkopf hypergraph Laplacians.
+1. Marco Ronzani and Cristina Silvano. *A Case for Hypergraphs…* [arXiv:2601.16118](https://arxiv.org/abs/2601.16118), 2026.
+2. Amirreza Khorasanian. *Beyond Edge Cuts…* (M-HySMap) [arXiv:2608.26223](https://arxiv.org/abs/2608.26223), 2026.
+3. T. C. Potjans and M. Diesmann. *Cerebral Cortex* 24:785–806, 2014.
 
 ---
 
-## Roadmap (toward a mapping SDK)
+## Roadmap
 
-- [x] C++20 library + CLI + Catch2 + CI
-- [x] Incremental multicast refine + spectral seed + portfolio
-- [ ] pybind11 bindings / Python notebook story
-- [ ] Importers: NEST, Brian2, Loihi NxNet
-- [ ] Pluggable routing (west-first, hardware multicast trees)
-- [ ] GUI for partition/placement inspection
-- [ ] Loihi / SpiNNaker export
-- [ ] Calibrated energy backend (only with a public, citable cost model)
+- [x] Phases 1–6 documentation spine
+- [x] Incremental multicast + spectral + portfolio
+- [x] Multithreading on large candidate batches
+- [x] pybind11 module
+- [x] Loihi-style research export
+- [ ] NEST / Brian2 importers
+- [ ] GUI / calibrated energy (only with a public model)
 
----
-
-## License
-
-[MIT](LICENSE). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
+[MIT](LICENSE) · [CONTRIBUTING](CONTRIBUTING.md)

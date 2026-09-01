@@ -41,6 +41,6 @@ void seed_spectral_partition(const DirectedHypergraph& g, const MeshNoC& mesh,
 /// 2-swap placement search under the multicast objective J.
 int refine_placement_multicast(const MeshNoC& mesh, Mapping& mapping,
                                IncrementalEvaluator& eval, std::mt19937_64& rng,
-                               int restarts);
+                               int restarts, int threads = 1);
 
 }  // namespace hysmap

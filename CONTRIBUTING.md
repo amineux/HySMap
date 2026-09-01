@@ -18,7 +18,9 @@ ctest --test-dir build --output-on-failure
 ./build/hysmap demo --mesh 4 --neurons 80 --seed 1
 ```
 
-- Open a PR against `main`. CI must stay green (Ubuntu build + tests).
+- Open a PR against `main`. CI must stay green (Ubuntu C++ tests + Python binding smoke).
+- Phase docs live under `docs/phases/`. Keep the README phase table in sync.
+- `hysmap export` is a Loihi-*style* research format — do not claim NxSDK compatibility.
 - If you change the objective, routing, or generator, re-run `hysmap bench --quick` and update `results/` plus the README table with **your** numbers.
 
 ## Style

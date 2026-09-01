@@ -1,7 +1,7 @@
 # HySMap algorithms
 
 This note is an engineer-level walkthrough of what the C++ library actually optimizes.
-The implementation is **inspired by** two public preprints; it is not a dump of the authors’ code and does not claim their experimental tables.
+The implementation is **inspired by** two public preprints; it is not a dump of the authors’ code and does not claim their experimental tables. Phases 1–6 that walk the same math from a 4×4 demo to a technical report live in [`docs/phases/`](phases/).
 
 | Idea | Source |
 | --- | --- |

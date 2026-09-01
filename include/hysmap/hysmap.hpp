@@ -1,11 +1,13 @@
 #pragma once
 
 #include "hysmap/cost.hpp"
+#include "hysmap/export.hpp"
 #include "hysmap/hypergraph.hpp"
 #include "hysmap/incremental.hpp"
 #include "hysmap/io.hpp"
 #include "hysmap/mapper.hpp"
 #include "hysmap/mesh.hpp"
+#include "hysmap/parallel.hpp"
 #include "hysmap/partition.hpp"
 #include "hysmap/placement.hpp"
 #include "hysmap/snn_generator.hpp"
