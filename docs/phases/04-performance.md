@@ -1,6 +1,8 @@
 # Phase 4 — Performance
 
-**Goal:** evaluate moves without rerouting the whole SNN, cache routes, and use threads where the candidate batch is large enough.
+Don't resimulate 80 axons to ask "what if this one neuron moved?" Cache the routes. Invalidate the sources that can notice. Thread the big candidate batches; leave the tiny ones alone.
+
+Move one neuron, list `A(v)`, watch `C_hop` drop 8 → 6: [`docs/examples/04-incremental-delta.md`](../examples/04-incremental-delta.md).
 
 ## Incremental \(\Delta\mathcal{J}\)
 

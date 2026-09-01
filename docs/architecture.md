@@ -1,6 +1,6 @@
 # Architecture
 
-HySMap is a small C++20 library plus a `hysmap` CLI. The library is the product surface; the CLI is how you generate evidence and demos.
+Small C++20 library + `hysmap` CLI. The library is the product; the CLI is how you generate evidence. If you want the 15-vs-5 hop picture first, start at [`docs/examples/`](examples/).
 
 ```
 SNN JSON / generator

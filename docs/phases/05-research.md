@@ -1,6 +1,6 @@
 # Phase 5 — Research
 
-**Goal:** compare representations, not just optimizers. Same SNN, same seed, same mesh, four (plus portfolio) mappers.
+Compare *representations*, not just optimizers. Same SNN, same seed, same mesh. If Activity+QAP already knows who spikes, leftover hop reduction is from dest-core fanout and shared XY links — not from a fancier local search.
 
 ```bash
 ./build/hysmap compare --input examples/net_potjans_80.json --mesh 4 --seed 1 --csv out.csv
