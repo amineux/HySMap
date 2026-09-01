@@ -36,3 +36,5 @@ jobs:
         run: |
           PYTHONPATH=build python3 -c "import hysmap; print(hysmap.__version__); g=hysmap.generate_snn(hysmap.GeneratorConfig()); print(g.neuron_count())"
           PYTHONPATH=build python3 python/examples/quickstart.py
+      - name: Intuition examples
+        run: python3 scripts/intuition.py

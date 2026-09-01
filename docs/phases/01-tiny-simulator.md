@@ -1,12 +1,12 @@
 # Phase 1 — Tiny simulator
 
-**Goal:** a 10–100 neuron SNN, a 4×4 mesh, a hypergraph, XY routing, and a cost you can print in one command.
+You need four things: some neurons, a 4×4, a hypergraph, and a number you can print. That's the whole phase.
 
 ```bash
 ./build/hysmap demo --mesh 4 --neurons 80 --seed 1
 ```
 
-That is the Phase 1 contract. Everything later is a better *search* over the same model.
+Everything later is a better *search* over this model. Worked numbers (15 hops vs 5): [`docs/examples/01-hyperedge-vs-edges.md`](../examples/01-hyperedge-vs-edges.md).
 
 ## The three objects
 

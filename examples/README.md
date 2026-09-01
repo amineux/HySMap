@@ -1,5 +1,7 @@
 # Examples
 
+Worked numbers (15 vs 5 hops, activity, partition, ΔJ): [`docs/examples/`](../docs/examples/). CLI recipes: [`docs/examples/00-cookbook.md`](../docs/examples/00-cookbook.md). Zero-build toy: `python3 scripts/intuition.py`.
+
 | File | Use |
 | --- | --- |
 | `net_potjans_80.json` | 80-neuron Potjans-inspired hypergraph (`seed=1`) |

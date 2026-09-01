@@ -1,6 +1,6 @@
 # Phase 3 — Intelligence
 
-**Goal:** use *who spikes* and *how the hypergraph is shaped*, not just unweighted edges.
+Unweighted edges treat a 0.5 Hz axon like a 20 Hz axon. Don't. Weight by rate, and let the hypergraph's Laplacian suggest a seed.
 
 ```bash
 ./build/hysmap map --input examples/net_potjans_80.json --mesh 4 \
@@ -16,6 +16,8 @@
 ## Activity weighting
 
 Replace each unit edge with the source rate \(r_u\). Edge+QAP and Activity+QAP share the same search; only the pairwise flow \(F_{ij}\) changes. High-rate axons pull their cores together under the QAP objective \(\sum_{ij} F_{ij} D_{\pi(i)\pi(j)}\).
+
+Same topology, two rate profiles (41 vs 14 vs 21): [`docs/examples/02-activity-weighting.md`](../examples/02-activity-weighting.md).
 
 ## QAP initialization
 

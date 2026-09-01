@@ -1,6 +1,6 @@
 # Phase 6 — Publication quality
 
-**Goal:** a repo you can clone, build, cite (as *software*), and extend — without pretending it is the source papers.
+Clone it, build it, cite it as *software*. Don't pretend this tree is the source papers. The report is an implementation note: [`docs/technical-report.md`](../technical-report.md).
 
 ## Checklist
 

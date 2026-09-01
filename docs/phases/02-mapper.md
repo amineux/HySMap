@@ -1,11 +1,13 @@
 # Phase 2 — Mapper
 
-**Goal:** assign every neuron to a core (`partition`) and every logical core to a mesh location (`placement`), starting from a random or balanced seed and improving with greedy refinement.
+Two questions: who shares a core, and where that core sits. Start random (or balanced), then greedily chip at the edge cut.
 
 ```bash
 ./build/hysmap map --input examples/net_potjans_80.json --mesh 4 \
     --seed-strategy random --refine greedy --seed 1
 ```
+
+12 neurons, capacity 3, packed vs striped: [`docs/examples/03-partition-then-place.md`](../examples/03-partition-then-place.md).
 
 | Flag | Values | Meaning |
 | --- | --- | --- |

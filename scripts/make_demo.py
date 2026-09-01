@@ -63,7 +63,7 @@ def main() -> None:
         ax.set_xticks(range(4))
         ax.set_yticks(range(4))
     fig.colorbar(im, ax=axes, fraction=0.02, pad=0.02, label="neurons / core")
-    fig.suptitle("Phase 1–4: same 80-neuron SNN, 4×4 mesh, seed=1", fontsize=11)
+    fig.suptitle("random placement → HySMap  ·  80 neurons, 4×4, seed=1", fontsize=11)
     fig.tight_layout()
     story = out / "storyboard.png"
     fig.savefig(story, dpi=150)
@@ -92,7 +92,7 @@ def main() -> None:
     ax_c.set_ylim(min(interp_c) * 0.92, max(interp_c) * 1.04)
     ax_c.set_xlabel("frame")
     ax_c.set_ylabel("objective J")
-    ax_c.set_title("Cost drops as the mapper refines")
+    ax_c.set_title("Cost: random → HySMap")
     ax_c.spines["top"].set_visible(False)
     ax_c.spines["right"].set_visible(False)
     badge = FancyBboxPatch((0.02, 0.82), 0.42, 0.14, transform=ax_h.transAxes,
