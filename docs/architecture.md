@@ -36,7 +36,9 @@ SNN JSON / generator
 | `incremental.hpp` | Cached per-source routes; peek/commit neuron moves and placement swaps |
 | `partition.hpp` | Balance, Edge+QAP FM, multicast FM |
 | `placement.hpp` | QAP 2-swap, force, min-distance, spectral, multicast 2-swap |
-| `mapper.hpp` | Named pipelines + portfolio |
+| `mapper.hpp` | Named pipelines + portfolio; seed/refine overrides |
+| `parallel.hpp` | `std::thread` pool (`parallel_for`, batch ≥ 32) |
+| `export.hpp` | Loihi-style research JSON / stub (not NxSDK) |
 | `snn_generator.hpp` | Potjans-inspired / layered / ER workloads |
 | `io.hpp` | JSON network I/O, JSON/CSV results |
 
@@ -55,14 +57,15 @@ Directed mesh links are packed integers (`LinkId`) so load vectors are dense arr
 | `generate` | Write a hypergraph JSON |
 | `map` | One mapper → metrics + optional assignment JSON |
 | `compare` | Edge+QAP, Activity+QAP, Spectral, HySMap-seeded, HySMap |
-| `bench` | Seeded suite over mesh sizes (writes CSV) |
-| `demo` | Zero-file walkthrough |
+| `export` | Loihi-style JSON or textual stub |
+| `bench` | Seeded suite (`--quick` / `--full`, `--threads`) |
+| `demo` | Phase 1 walkthrough |
 
 Exit codes: `0` success, `1` usage/runtime error.
 
 ## Build graph
 
-CMake 3.20+ fetches **Eigen 3.4** (spectral) and **Catch2 v3** (tests). No GPU, no MPI, no Python required for the core.
+CMake 3.20+ fetches **Eigen 3.4** (spectral) and **Catch2 v3** (tests). Optional `-DHYSMAP_BUILD_PYTHON=ON` fetches **pybind11** and builds `hysmap.*.so`. No GPU, no MPI. The C++ core does not require Python.
 
 ```text
 cmake -B build && cmake --build build -j && ctest --test-dir build
@@ -72,5 +75,5 @@ cmake -B build && cmake --build build -j && ctest --test-dir build
 
 - Replace `MeshNoC::xy_path` / `multicast_union` with another deterministic policy (West-first, custom multicast tree) without touching the incremental locality theorem.
 - Swap `generate_snn` for an importer (NEST / Brian / Loihi NxNet). The hypergraph JSON is the stable interchange.
-- Bindings: pybind11 is intentionally not in the default graph (see README roadmap).
-- GUI / Loihi export are out of scope for v0.1; the library API is shaped so they can sit on top.
+- Bindings: `python/bindings.cpp` (`HYSMAP_BUILD_PYTHON`).
+- GUI / vendor SDK backends remain future work; Loihi-*style* export is in `export.hpp`.

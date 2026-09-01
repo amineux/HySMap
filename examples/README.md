@@ -10,5 +10,7 @@
 
 ```bash
 ./build/hysmap map --input examples/net_potjans_80.json --mesh 4 --mapper hysmap --seed 1
+./build/hysmap map --input examples/net_potjans_80.json --mesh 4 --seed-strategy random --refine greedy
 ./build/hysmap compare --input examples/net_potjans_108.json --mesh 5 --seed 1
+./build/hysmap export --input examples/net_potjans_80.json --format loihi-json --out /tmp/loihi.json
 ```
